@@ -16,25 +16,31 @@ namespace MapsToTwinSyncer
             // Start time
             var start = DateTime.Now;
             var datasetId = "8455dd7a-efaf-65ff-15da-3d96566369b4";
-            var subkey = "--";
-            
+            var subkey = "s6JTKf5gnGdgvv6iDNKon-KAnR191AMUgaIv3FMFrVg";
+            var subquery = $"&subscription-key={subkey}";
+
             //https://us.atlas.microsoft.com/wfs/datasets/8455dd7a-efaf-65ff-15da-3d96566369b4/collections/unit/items?api-version=1.0&subscription-key=---------------------
-            var postfeatureUpdateUrlTemplate = $"https://us.atlas.microsoft.com/wfs/datasets/{datasetId}/collections/unit/items?api-version=1.0&subscription-key={subkey}";
+            var postfeatureUpdateUrlTemplate = $"https://us.atlas.microsoft.com/wfs/datasets/{datasetId}/collections/unit/items?api-version=1.0";
 
             // retreive unit info
-            var result = await ProcessFeatureCollection(httpClient, postfeatureUpdateUrlTemplate);
+            var result = await ProcessFeatureCollection(httpClient, postfeatureUpdateUrlTemplate, subquery);
+
             // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse); 
 
             // foreach unit, find and update the corresponding  (include covering the next page)
 
             // Total duration
             var end = DateTime.Now - start;
+
+            Console.WriteLine($"Processed {result.ToString()} units in {end.TotalSeconds}s");
+            
         }
 
 
-        private static async Task<string> ProcessFeatureCollection(HttpClient httpClient, string url)
+        private static async Task<int> ProcessFeatureCollection(HttpClient httpClient, string url, string subquery)
         {
-            var result = await httpClient.GetAsync(url);
+            int total= 0;
+            var result = await httpClient.GetAsync(url+subquery);
             Console.WriteLine(result.StatusCode.ToString());
             if (!result.IsSuccessStatusCode)
             {
@@ -43,11 +49,35 @@ namespace MapsToTwinSyncer
             else{
                 Root col = JsonConvert.DeserializeObject<Root>(result.Content.ReadAsStringAsync().Result); 
                 Console.WriteLine($"{col.type} {col.numberReturned.ToString()}");
+                total = col.numberReturned;
+                foreach (var feature in col.features)
+                {
+                    // Update Twin with the feature information
+
+                    var firstPoint = feature.geometry.coordinates[0][0];// TODO - get the center point
+                    // use first 
+                    Console.WriteLine($"{feature.properties.name} as {feature.id}, [{firstPoint[0]},{firstPoint[1]}] on {feature.properties.levelId}]");
+
+
+                }
+return total;// TODO enable all results
+                // continue if there is a next link
+                foreach (var link in col.links)
+                {
+                    if(link.rel == "next")
+                    {
+                        var next = link.href;
+                        Console.WriteLine(next);
+                        if(!string.IsNullOrWhiteSpace(next))
+                        {
+                            total += await ProcessFeatureCollection(httpClient, next.Replace("https://atlas.microsoft.com", "https://us.atlas.microsoft.com"), subquery);// making sure we connect to the US server
+                        }
+                    }
+                }
             }
 
-            return "";
+            return total;
         }
-        
     }
     // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse); 
     public class Geometry    {
