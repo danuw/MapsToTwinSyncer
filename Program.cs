@@ -114,6 +114,8 @@ namespace MapsToTwinSyncer
                     // use first 
                     //Console.WriteLine($"{feature.properties.name} as {feature.id}, [{firstPoint[0]},{firstPoint[1]}] on {feature.properties.levelId}]");
                     var mapcenter = $"[{firstPoint[0]},{firstPoint[1]}]";
+                    Console.WriteLine(mapcenter);
+                    mapcenter = await GetMapCenterAsync(feature.geometry.coordinates[0]);
                     Console.WriteLine($"Room\t{feature.properties.name}\t{feature.properties.levelId}\tcontains\t\t{feature.id}\t{mapcenter}");
 
                     // Run a query for all twins   
@@ -127,9 +129,10 @@ namespace MapsToTwinSyncer
                         // Update   Update 
                         await UpdateTwinProperty(adtclient, feature.properties.name, "replace", "/MapCenter", mapcenter);
                     }
+                    break;
 
                 }
-//return total;// TODO enable all results
+return total;// TODO enable all results
                 // continue if there is a next link
                 foreach (var link in col.links)
                 {
@@ -161,6 +164,27 @@ namespace MapsToTwinSyncer
             {
                 Log.Error($"*** Error:{exc.Status}/{exc.Message}");
             }
+        }
+        public static async Task<string> GetMapCenterAsync(List<List<double>> points)
+        {
+            // Update twin property
+            double minLat=1; double minLong=1;double maxLat=1;double maxLong=1;
+            double lat; double plong;
+            if (points.Count <2) throw new Exception("should have more corners");
+            //var max = points.Max(r=> r.Max(c=>c[0]));
+            //Console.WriteLine(max);
+            for (int i = 1; i < points.Count; i++)
+            {
+                Console.WriteLine($"[{points[i][0]},{points[i][1]}]");
+                minLat = Math.Min(points[i][0], points[i-1][0]);
+                minLong = Math.Min(points[i][1], points[i-1][1]);
+                maxLat = Math.Max(points[i][0], points[i-1][0]);
+                maxLong = Math.Max(points[i][1], points[i-1][1]);
+            }
+            lat = (minLat + maxLat) /2;
+            plong = (minLong + maxLong) /2;
+            Console.WriteLine($"[{lat},{plong}]");
+            return $"[{lat},{plong}]";
         }
     
     }
