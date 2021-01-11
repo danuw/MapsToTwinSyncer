@@ -129,10 +129,9 @@ namespace MapsToTwinSyncer
                         // Update   Update 
                         await UpdateTwinProperty(adtclient, feature.properties.name, "replace", "/MapCenter", mapcenter);
                     }
-                    break;
-
+                    
                 }
-return total;// TODO enable all results
+//return total;// TODO enable all results
                 // continue if there is a next link
                 foreach (var link in col.links)
                 {
@@ -168,23 +167,31 @@ return total;// TODO enable all results
         public static async Task<string> GetMapCenterAsync(List<List<double>> points)
         {
             // Update twin property
-            double minLat=1; double minLong=1;double maxLat=1;double maxLong=1;
-            double lat; double plong;
             if (points.Count <2) throw new Exception("should have more corners");
-            //var max = points.Max(r=> r.Max(c=>c[0]));
-            //Console.WriteLine(max);
-            for (int i = 1; i < points.Count; i++)
+            return GetCentralGeoCoordinate(points); // adapted from https://stackoverflow.com/questions/28315027/calculation-of-center-point-from-list-of-latitude-and-longitude-are-slightly-dif
+        }
+        public static string GetCentralGeoCoordinate(List<List<double>>  geoCoordinates)
+        {
+            double x = 0, y = 0, z = 0;
+            foreach (var geoCoordinate in geoCoordinates)
             {
-                Console.WriteLine($"[{points[i][0]},{points[i][1]}]");
-                minLat = Math.Min(points[i][0], points[i-1][0]);
-                minLong = Math.Min(points[i][1], points[i-1][1]);
-                maxLat = Math.Max(points[i][0], points[i-1][0]);
-                maxLong = Math.Max(points[i][1], points[i-1][1]);
+                var latitude = geoCoordinate[0] * Math.PI / 180;
+                var longitude = geoCoordinate[1] * Math.PI / 180;
+
+                x += Math.Cos(latitude) * Math.Cos(longitude);
+                y += Math.Cos(latitude) * Math.Sin(longitude);
+                z += Math.Sin(latitude);
             }
-            lat = (minLat + maxLat) /2;
-            plong = (minLong + maxLong) /2;
-            Console.WriteLine($"[{lat},{plong}]");
-            return $"[{lat},{plong}]";
+            var total = geoCoordinates.Count;
+            x = x / total;
+            y = y / total;
+            z = z / total;
+            var centralLongitude = Math.Atan2(y, x);
+            var centralSquareRoot = Math.Sqrt(x * x + y * y);
+            var centralLatitude = Math.Atan2(z, centralSquareRoot);
+            var res = $"[{centralLatitude * 180 / Math.PI},{centralLongitude * 180 / Math.PI}]";
+            Console.WriteLine(res);
+            return res;
         }
     
     }
